@@ -1,16 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import dynamic from 'next/dynamic';
+import { ResponsiveContainer as RC, ResponsiveContainerProps } from 'recharts';
 import { cn } from '@/lib/utils';
 
 const THEMES = { light: '', dark: '.dark' } as const;
 
-// Dynamically import Recharts to avoid SSR issues on Vercel
-const {
-  ResponsiveContainer,
-  // If you use other Recharts primitives directly, import them here too
-} = dynamic(() => import('recharts'), { ssr: false }) as unknown as typeof import('recharts');
+// Wrapper to fix TS type mismatch issue for ResponsiveContainer
+function ResponsiveContainer(props: ResponsiveContainerProps) {
+  // @ts-expect-error TS mismatch between recharts and React 18 types
+  return <RC {...props} />;
+}
 
 export type ChartConfig = {
   [k in string]: {
@@ -38,7 +38,6 @@ const ChartContainer = React.forwardRef<
     children: React.ComponentProps<typeof ResponsiveContainer>['children'];
   }
 >(({ id, className, children, config, ...props }, ref) => {
-  // useState instead of useId to avoid rare hydration mismatches on Vercel
   const [chartId] = React.useState(() => `chart-${id || Math.random().toString(36).substring(2, 9)}`);
 
   return (
@@ -54,7 +53,9 @@ const ChartContainer = React.forwardRef<
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <ResponsiveContainer>{children}</ResponsiveContainer>
+        <ResponsiveContainer width="100%" height={300}>
+          {children}
+        </ResponsiveContainer>
       </div>
     </ChartContext.Provider>
   );
@@ -62,47 +63,52 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = 'Chart';
 
 function ChartStyle({ id, config }: { id: string; config: ChartConfig }) {
-  const colorConfig = Object.entries(config).map(([key, item]) => {
-    const color = item.theme
-      ? Object.entries(item.theme).map(([theme, value]) => {
-          return `${THEMES[theme as keyof typeof THEMES]} [data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${value}; }`;
-        }).join('\n')
-      : `[data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${item.color}; }`;
+  const colorConfig = Object.entries(config)
+    .map(([key, item]) => {
+      const color = item.theme
+        ? Object.entries(item.theme)
+            .map(([theme, value]) => {
+              return `${THEMES[theme as keyof typeof THEMES]} [data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${value}; }`;
+            })
+            .join('\n')
+        : `[data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${item.color}; }`;
 
-    return color;
-  }).join('\n');
+      return color;
+    })
+    .join('\n');
 
   return <style dangerouslySetInnerHTML={{ __html: colorConfig }} />;
 }
 
-function ChartTooltip({ active, payload, label, hideLabel, labelFormatter, hideIndicator, indicator = 'dot', nameKey, labelKey }) {
+function ChartTooltip({
+  active,
+  payload,
+  label,
+  hideLabel,
+  labelFormatter,
+  hideIndicator,
+  indicator = 'dot',
+  nameKey,
+  labelKey,
+}: any) {
   if (!active || !payload?.length) return null;
   const chart = useChart();
 
   return (
     <div className="rounded-md border bg-background p-2 shadow-sm">
-      {!hideLabel && (
-        <div className="mb-1 font-medium">
-          {labelFormatter ? labelFormatter(label) : label}
-        </div>
-      )}
+      {!hideLabel && <div className="mb-1 font-medium">{labelFormatter ? labelFormatter(label) : label}</div>}
       <div className="space-y-1">
-        {payload.map((entry, index) => {
+        {payload.map((entry: any, index: number) => {
           const key = (nameKey && entry.payload[nameKey]) || entry.dataKey;
           const configEntry = chart.config[key as string];
           return (
-            <div
-              key={`tooltip-item-${index}`}
-              className="flex items-center gap-2 text-sm"
-              data-chart-color={key}
-            >
-              {!hideIndicator && (
-                indicator === 'dot' ? (
+            <div key={`tooltip-item-${index}`} className="flex items-center gap-2 text-sm" data-chart-color={key}>
+              {!hideIndicator &&
+                (indicator === 'dot' ? (
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--color-${key})` }} />
                 ) : (
                   <span className="h-2 w-3" style={{ backgroundColor: `var(--color-${key})` }} />
-                )
-              )}
+                ))}
               <span>{configEntry?.label || key}</span>
               <span className="ml-auto font-medium">{entry.value}</span>
             </div>
@@ -113,24 +119,24 @@ function ChartTooltip({ active, payload, label, hideLabel, labelFormatter, hideI
   );
 }
 
-function ChartLegend({ payload, verticalAlign = 'bottom', align = 'center', hideIcon = false }) {
+function ChartLegend({ payload, verticalAlign = 'bottom', align = 'center', hideIcon = false }: any) {
   const chart = useChart();
   return (
-    <div className={cn(
-      'flex flex-wrap gap-2',
-      verticalAlign === 'top' ? 'mb-2' : 'mt-2',
-      align === 'left' && 'justify-start',
-      align === 'right' && 'justify-end',
-      align === 'center' && 'justify-center'
-    )}>
-      {payload.map((entry, index) => {
+    <div
+      className={cn(
+        'flex flex-wrap gap-2',
+        verticalAlign === 'top' ? 'mb-2' : 'mt-2',
+        align === 'left' && 'justify-start',
+        align === 'right' && 'justify-end',
+        align === 'center' && 'justify-center'
+      )}
+    >
+      {payload.map((entry: any, index: number) => {
         const key = entry.dataKey;
         const configEntry = chart.config[key];
         return (
           <div key={`legend-item-${index}`} className="flex items-center gap-1 text-sm" data-chart-color={key}>
-            {!hideIcon && (
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--color-${key})` }} />
-            )}
+            {!hideIcon && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: `var(--color-${key})` }} />}
             {configEntry?.label || key}
           </div>
         );
@@ -139,8 +145,4 @@ function ChartLegend({ payload, verticalAlign = 'bottom', align = 'center', hide
   );
 }
 
-export {
-  ChartContainer,
-  ChartTooltip,
-  ChartLegend,
-};
+export { ChartContainer, ChartTooltip, ChartLegend };
