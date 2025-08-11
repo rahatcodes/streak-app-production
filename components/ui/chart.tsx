@@ -7,10 +7,16 @@ import { cn } from '@/lib/utils';
 const THEMES = { light: '', dark: '.dark' } as const;
 
 // Dynamically import only the ResponsiveContainer component
-// const ResponsiveContainer = dynamic(
-//   () => import('recharts').then(mod => mod.ResponsiveContainer),
-//   { ssr: false }
-// );
+const ResponsiveContainer = dynamic(
+  () =>
+    import('recharts').then(mod => {
+      const Component = mod.ResponsiveContainer;
+      return function Wrapper(props: React.ComponentProps<typeof Component>) {
+        return <Component {...props} />;
+      };
+    }),
+  { ssr: false }
+);
 
 // rest of your code unchanged...
 
