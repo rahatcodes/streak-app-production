@@ -1,16 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import { ResponsiveContainer as RC, ResponsiveContainerProps } from 'recharts';
+import dynamic from 'next/dynamic';
 import { cn } from '@/lib/utils';
 
 const THEMES = { light: '', dark: '.dark' } as const;
 
-// Wrapper to fix TS type mismatch issue for ResponsiveContainer
-function ResponsiveContainer(props: ResponsiveContainerProps) {
-  // @ts-expect-error TS mismatch between recharts and React 18 types
-  return <RC {...props} />;
-}
+// Dynamically import only the ResponsiveContainer component
+// const ResponsiveContainer = dynamic(
+//   () => import('recharts').then(mod => mod.ResponsiveContainer),
+//   { ssr: false }
+// );
+
+// rest of your code unchanged...
 
 export type ChartConfig = {
   [k in string]: {
@@ -53,9 +55,7 @@ const ChartContainer = React.forwardRef<
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <ResponsiveContainer width="100%" height={300}>
-          {children}
-        </ResponsiveContainer>
+        <ResponsiveContainer>{children}</ResponsiveContainer>
       </div>
     </ChartContext.Provider>
   );
@@ -67,9 +67,10 @@ function ChartStyle({ id, config }: { id: string; config: ChartConfig }) {
     .map(([key, item]) => {
       const color = item.theme
         ? Object.entries(item.theme)
-            .map(([theme, value]) => {
-              return `${THEMES[theme as keyof typeof THEMES]} [data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${value}; }`;
-            })
+            .map(
+              ([theme, value]) =>
+                `${THEMES[theme as keyof typeof THEMES]} [data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${value}; }`
+            )
             .join('\n')
         : `[data-chart=${id}] [data-chart-color='${key}'] { --color-${key}: ${item.color}; }`;
 
